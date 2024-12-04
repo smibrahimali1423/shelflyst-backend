@@ -1,7 +1,9 @@
+const fetchusername = require('../middleware/fetchusername');
+const fetchuser = require('../middleware/fetchuser');
 const express = require('express');
 const router = express.Router();
-const fetchuser = require('../middleware/fetchuser');
 const BookItem = require('../models/BookItem');
+const CommonBookItem = require('../models/CommonBookItem');
 const { body, validationResult } = require('express-validator');
 
 // ROUTE 1: Get all books for a particular user using GET "/api/bookdetails/getallbooks". Login required
@@ -83,4 +85,71 @@ router.delete('/deleteallbooks', fetchuser, async (req, res) => {
     }
 });
 
+// ROUTE 5: Get all common books (GET) - No authentication required
+router.get('/getcommonbooks', async (req, res) => {
+    try {
+        const commonBooks = await CommonBookItem.find();
+        res.json(commonBooks);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send("Internal Server Error");
+    }
+});
+
+const formatDate = (date) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, '0'); // Months are zero-indexed, so add 1
+    const day = d.getDate().toString().padStart(2, '0');
+    return `${day}-${month}-${year}`;
+};
+
+// ROUTE: Add book to the common area
+router.post('/addcommonbook', fetchuser, fetchusername, [
+    body('id').notEmpty(),
+    body('selfLink').notEmpty(),
+    body('volumeInfo').notEmpty(),
+], async (req, res) => {
+    console.log("Received request to add book to the common area");
+
+    try {
+        const { id, selfLink, volumeInfo } = req.body;
+
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            console.log(errors.array());  // Log errors
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        console.log('Request body:', req.body);
+        console.log('User:', req.user); // Now includes both `id` and `name`
+
+        const existingBook = await CommonBookItem.findOne({ id });
+        if (existingBook) {
+            return res.status(400).json({ msg: 'This book is already in the common area.' });
+        }
+        const formattedDate = formatDate(new Date()).toString;
+
+        const newCommonBook = new CommonBookItem({
+            id,
+            selfLink,
+            volumeInfo: {
+                ...volumeInfo,
+                sharedByUser: req.user.name, // Use the fetched name here
+            },
+            user: req.user.id,
+            date: formattedDate, // Outputs ISO format: "2024-11-21T15:45:00.000Z"
+        });
+
+        const savedCommonBook = await newCommonBook.save();
+        res.json(savedCommonBook);
+        console.log("Book added to the common area successfully!");
+    } catch (error) {
+        console.error('Error message:', error.message);
+        res.status(500).send("Internal Server Error");
+    }
+});
+
+
 module.exports = router;
+
