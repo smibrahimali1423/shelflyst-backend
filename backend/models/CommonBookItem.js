@@ -47,15 +47,14 @@ const volumeInfoSchema = new Schema({
         type: String,
         default: "Not available"
     },
-    sharedBy: {
-        type: String,  // Store the user's ID
+    sharedByUser: {
+        type: String,
         default: "Unknown"
     },
-    sharedDate: {
-        type: Date,
-        default: Date.now // sets the current date and time as the default
-    },
-    
+    date: {
+        type: String,
+        default: () => new Date().toLocaleDateString('en-IN')
+    }
 
 }, { _id: false });
 
@@ -76,10 +75,10 @@ const itemSchema = new Schema({
     volumeInfo: {
         type: volumeInfoSchema,
         required: true
-    }
+    },
 });
 
 // Create and export the model
-const BookItem = mongoose.model('BookItem', itemSchema);
+const CommonBookItem = mongoose.model('CommonBookItem', itemSchema);
 
-module.exports = BookItem;
+module.exports = CommonBookItem;
